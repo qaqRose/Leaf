@@ -40,8 +40,13 @@ public class IDGenServiceTest {
     @Test
     public void testGetId() {
         for (int i = 0; i < 100; ++i) {
-            Result r = idGen.get("leaf-segment-test");
+            Result r = idGen.get("leaf-segment-test1");
             System.out.println(r);
+        }
+        try {
+            System.in.read();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
     @After
