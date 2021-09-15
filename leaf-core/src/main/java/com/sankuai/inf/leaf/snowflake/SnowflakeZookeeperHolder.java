@@ -46,6 +46,12 @@ public class SnowflakeZookeeperHolder {
         this.connectionString = connectionString;
     }
 
+    /**
+     * 初始化
+     * 1. 创建znode,
+     * 2.
+     * @return
+     */
     public boolean init() {
         try {
             CuratorFramework curator = createWithOptions(connectionString, new RetryUntilElapsed(1000, 4), 10000, 6000);
@@ -65,6 +71,7 @@ public class SnowflakeZookeeperHolder {
                 //存在根节点,先检查是否有属于自己的根节点
                 List<String> keys = curator.getChildren().forPath(PATH_FOREVER);
                 for (String key : keys) {
+                    LOGGER.info("key:{}", key);
                     String[] nodeKey = key.split("-");
                     realNode.put(nodeKey[0], key);
                     nodeMap.put(nodeKey[0], Integer.parseInt(nodeKey[1]));
@@ -95,6 +102,7 @@ public class SnowflakeZookeeperHolder {
         } catch (Exception e) {
             LOGGER.error("Start node ERROR {}", e);
             try {
+                // zookeeper故障时， 使用本地持久化的workid
                 Properties properties = new Properties();
                 properties.load(new FileInputStream(new File(PROP_PATH.replace("{port}", port + ""))));
                 workerID = Integer.valueOf(properties.getProperty("workerID"));
@@ -111,6 +119,12 @@ public class SnowflakeZookeeperHolder {
         ScheduledUploadData(curator, zk_AddressNode);// /snowflake_forever/ip:port-000000001
     }
 
+    /**
+     * 定时上报系统时间
+     * 3s一次
+     * @param curator
+     * @param zk_AddressNode
+     */
     private void ScheduledUploadData(final CuratorFramework curator, final String zk_AddressNode) {
         Executors.newSingleThreadScheduledExecutor(new ThreadFactory() {
             @Override
@@ -128,9 +142,17 @@ public class SnowflakeZookeeperHolder {
 
     }
 
+    /**
+     * 检查初始化时间戳，是否发生时钟回拨
+     * @param curator
+     * @param zk_AddressNode
+     * @return
+     * @throws Exception
+     */
     private boolean checkInitTimeStamp(CuratorFramework curator, String zk_AddressNode) throws Exception {
         byte[] bytes = curator.getData().forPath(zk_AddressNode);
         Endpoint endPoint = deBuildData(new String(bytes));
+        LOGGER.info("endpoint: {}", new String(bytes));
         //该节点的时间不能小于最后一次上报的时间
         return !(endPoint.getTimestamp() > System.currentTimeMillis());
     }
@@ -156,6 +178,7 @@ public class SnowflakeZookeeperHolder {
             if (System.currentTimeMillis() < lastUpdateTime) {
                 return;
             }
+            LOGGER.info("update data on path {}", path);
             curator.setData().forPath(path, buildData().getBytes());
             lastUpdateTime = System.currentTimeMillis();
         } catch (Exception e) {

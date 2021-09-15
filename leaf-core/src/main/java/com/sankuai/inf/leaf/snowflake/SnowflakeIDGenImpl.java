@@ -25,6 +25,8 @@ public class SnowflakeIDGenImpl implements IDGen {
     private final long sequenceBits = 12L;
     private final long workerIdShift = sequenceBits;
     private final long timestampLeftShift = sequenceBits + workerIdBits;
+
+    // 4095 = 2^12 - 1
     private final long sequenceMask = ~(-1L << sequenceBits);
     private long workerId;
     private long sequence = 0L;
@@ -59,13 +61,18 @@ public class SnowflakeIDGenImpl implements IDGen {
 
     @Override
     public synchronized Result get(String key) {
+        // 当前时间戳
         long timestamp = timeGen();
+        // 时钟回拨
         if (timestamp < lastTimestamp) {
             long offset = lastTimestamp - timestamp;
+            // 5ms内的回拨，
             if (offset <= 5) {
                 try {
+                    // 等待2倍时间
                     wait(offset << 1);
                     timestamp = timeGen();
+                    // 还是不满足，则返回错误编码
                     if (timestamp < lastTimestamp) {
                         return new Result(-1, Status.EXCEPTION);
                     }
@@ -94,6 +101,11 @@ public class SnowflakeIDGenImpl implements IDGen {
 
     }
 
+    /**
+     * 等待到下一毫秒
+     * @param lastTimestamp
+     * @return
+     */
     protected long tilNextMillis(long lastTimestamp) {
         long timestamp = timeGen();
         while (timestamp <= lastTimestamp) {
@@ -102,6 +114,10 @@ public class SnowflakeIDGenImpl implements IDGen {
         return timestamp;
     }
 
+    /**
+     * 方便扩展
+     * @return
+     */
     protected long timeGen() {
         return System.currentTimeMillis();
     }

@@ -1,6 +1,13 @@
 package com.sankuai.inf.leaf.common;
 
+/**
+ * 获取id结果
+ */
 public class Result {
+    /**
+     * 表示id值或错误状态值
+     * 状态：-1 时间回拨 -2 等待时钟正常被中断 -3 时间回拨过多
+     */
     private long id;
     private Status status;
 
